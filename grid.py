@@ -56,7 +56,7 @@ def create_grid(sub_grid: int) -> list[list]:
 def remove_numbers(grid: list[list]) -> None:
     """ Remove numbers from the grid. """
     num_of_cells = GRID_SIZE * GRID_SIZE
-    empties = num_of_cells * 3 // 9  # 7 is ideal - higher the number easier the game
+    empties = num_of_cells * 3 // 12  # 7 is ideal - higher the number easier the game
     
     for i in sample(range(num_of_cells), empties):
         grid[i // GRID_SIZE][i % GRID_SIZE] = 0
@@ -70,18 +70,25 @@ class Grid:
         self.num_x_offset = 25
         self.num_y_offset = 12
         self.line_coordinates = create_line_coordinates(self.cell_size)
-        self.grid = create_grid(SUB_GRID_SIZE)
-        self.__solved_grid = deepcopy(self.grid)  # create a deep copy before removing numbers
-        self.win = False
-        
-        remove_numbers(self.grid)
-        
-        self.occupied_cell_coordinates = self.pre_occupied_cells()
-        # print(len(self.occupied_cell_coordinates))
-        
+        self.is_solved = False
         self.game_font = font
         
+        self.grid = create_grid(SUB_GRID_SIZE)
+        self.__solved_grid = deepcopy(self.grid)  # create a deep copy before removing numbers
+        remove_numbers(self.grid)        
+        self.occupied_cell_coordinates = self.pre_occupied_cells()
+        
         self.selection = SelectNumber(pygame, self.game_font)
+        
+    
+    def restart(self) -> None:
+        """ Restart the game. """
+        self.grid = create_grid(SUB_GRID_SIZE)
+        self.__solved_grid = deepcopy(self.grid)
+        remove_numbers(self.grid)
+        self.occupied_cell_coordinates = self.pre_occupied_cells()
+        self.selection.selected_number = 0
+        self.is_solved = False
         
         
     def check_grid(self) -> bool:
@@ -146,7 +153,7 @@ class Grid:
         self.selection.button_clicked(x, y)
         
         if self.check_grid():
-            self.win = True
+            self.is_solved = True
     
     
     def pre_occupied_cells(self) -> int:
