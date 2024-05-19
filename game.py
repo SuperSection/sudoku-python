@@ -6,13 +6,13 @@ from grid import Grid
 os.environ["SDL_VIDEO_WINDOW_POS"] = "%d,%d" % (200, 80)
 
 # create the window surface and set the window caption
-surface = pygame.display.set_mode((1220, 720))
+surface = pygame.display.set_mode((1000, 720))
 pygame.display.set_caption("Sudoku")
 
 pygame.font.init()
 game_font = pygame.font.SysFont("Comic Sans MS", 40)
 
-grid = Grid(game_font)
+grid = Grid(pygame, game_font)
 running = True
 
 # the game loop

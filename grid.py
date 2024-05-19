@@ -1,4 +1,7 @@
 from random import sample
+from selection import SelectNumber
+from copy import deepcopy
+
 
 GRID_LENGTH = 720
 CELL_COUNT = 9
@@ -53,7 +56,7 @@ def create_grid(sub_grid: int) -> list[list]:
 def remove_numbers(grid: list[list]) -> None:
     """ Remove numbers from the grid. """
     num_of_cells = GRID_SIZE * GRID_SIZE
-    empties = num_of_cells * 3 // 7  # 7 is ideal - higher the number easier the game
+    empties = num_of_cells * 3 // 9  # 7 is ideal - higher the number easier the game
     
     for i in sample(range(num_of_cells), empties):
         grid[i // GRID_SIZE][i % GRID_SIZE] = 0
@@ -62,18 +65,67 @@ def remove_numbers(grid: list[list]) -> None:
 
 
 class Grid:
-    def __init__(self, font):
+    def __init__(self, pygame, font):
         self.cell_size = CELL_SIZE
         self.num_x_offset = 25
         self.num_y_offset = 12
         self.line_coordinates = create_line_coordinates(self.cell_size)
         self.grid = create_grid(SUB_GRID_SIZE)
+        self.__solved_grid = deepcopy(self.grid)  # create a deep copy before removing numbers
+        self.win = False
+        
         remove_numbers(self.grid)
+        
         self.occupied_cell_coordinates = self.pre_occupied_cells()
-        print(len(self.occupied_cell_coordinates))
+        # print(len(self.occupied_cell_coordinates))
         
         self.game_font = font
         
+        self.selection = SelectNumber(pygame, self.game_font)
+        
+        
+    def check_grid(self) -> bool:
+        """ Check if the grid is solved. """
+        for row in range(GRID_SIZE):
+            for col in range(GRID_SIZE):
+                if self.grid[row][col] != self.__solved_grid[row][col]:
+                    return False
+
+        return True
+        
+    
+    def is_possible_to_place(self, col: int, row: int, num: int) -> bool:
+        """ Check if the number can be placed in the cell. """
+        # Temporarily remove the number from the cell
+        original_value = self.grid[row][col]
+        self.grid[row][col] = 0
+        
+        # check the row
+        for i in range(GRID_SIZE):
+            if self.grid[row][i] == num:
+                self.grid[row][col] = original_value
+                return False
+
+        # check the column
+        for i in range(GRID_SIZE):
+            if self.grid[i][col] == num:
+                self.grid[row][col] = original_value
+                return False
+
+        # check the sub-grid
+        sub_grid_row_start = (row // SUB_GRID_SIZE) * SUB_GRID_SIZE
+        sub_grid_col_start = (col // SUB_GRID_SIZE) * SUB_GRID_SIZE
+
+        for i in range(SUB_GRID_SIZE):
+            for j in range(SUB_GRID_SIZE):
+                if self.grid[sub_grid_row_start + i][sub_grid_col_start + j] == num:
+                    self.grid[row][col] = original_value
+                    return False
+
+         # Restore the original value
+        self.grid[row][col] = original_value
+        return True
+    
     
     def is_cell_preoccupied(self, col: int, row: int) -> bool:
         """ Check for non-playable cells - preoccupied/initialized cells. """
@@ -89,7 +141,12 @@ class Grid:
         if x <= GRID_LENGTH:
             grid_x, grid_y = x // self.cell_size, y // self.cell_size
             if not self.is_cell_preoccupied(grid_x, grid_y):
-                self.set_cell(grid_x, grid_y, -1)
+                self.set_cell(grid_x, grid_y, self.selection.selected_number)
+                
+        self.selection.button_clicked(x, y)
+        
+        if self.check_grid():
+            self.win = True
     
     
     def pre_occupied_cells(self) -> int:
@@ -117,13 +174,22 @@ class Grid:
         for row in range(len(self.grid)):
             for col in range(len(self.grid[row])):
                 if self.grid[row][col] != 0:
-                    text_surface = self.game_font.render(str(self.get_cell(col, row)), False, (0, 200, 255))
+                    color = (0, 255, 0)  # Default color is green
+
+                    if not self.is_possible_to_place(col, row, self.grid[row][col]):
+                        color = (255, 0, 0)  # Set color to red if the number is not valid in the cell
+
+                    if (row, col) in self.occupied_cell_coordinates:
+                        color = (0, 200, 255)  # Set color for pre-occupied cells if needed
+
+                    text_surface = self.game_font.render(str(self.grid[row][col]), False, color)
                     surface.blit(text_surface, (col * self.cell_size + self.num_x_offset, row * self.cell_size + self.num_y_offset))
                     
                     
     def draw_all(self, pg, surface) -> None:
         self.__draw_lines(pg, surface)
         self.__draw_numbers(surface)
+        self.selection.draw(pg, surface)
 
 
     def get_cell(self, col: int, row: int) -> int:
